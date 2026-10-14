@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "654929736805",
+    "project_id": "aquios-7fec8",
+    "storage_bucket": "aquios-7fec8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:654929736805:android:7712247c3f5cbacd2e428c",
+        "android_client_info": {
+          "package_name": "com.example.proj_p1_plotz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdn485eZREbSSPZuz7jjOW2eb9SkbQGV4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
