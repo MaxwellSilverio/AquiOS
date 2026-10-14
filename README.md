@@ -15,35 +15,45 @@ O **AquiOS** é um aplicativo em Flutter e desenvolvido como um projeto acadêmi
 
 ### Tela principal
 
-<!-- Inserir aqui a captura real da tela principal -->
+<img width="481" height="647" alt="image" src="https://github.com/user-attachments/assets/bf586ceb-54e9-4bee-90b8-c7900cdefb39" />
+
 
 ### Dados profissionais
 
-<!-- Inserir aqui a captura real da tela de dados profissionais -->
+<img width="481" height="647" alt="image" src="https://github.com/user-attachments/assets/0ffa85fd-3822-4121-af54-e59173b5f89e" />
+
 
 ### Clientes
 
-<!-- Inserir aqui a captura real da tela de clientes -->
+<img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/bc38e35a-c4a9-45fc-adb1-33f12502b831" />
+
 
 ### Produtos e serviços
 
-<!-- Inserir aqui a captura real da tela de produtos e serviços -->
+<img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/347a2cc1-705f-4b8d-9d0a-9c146a9f9627" />
+
 
 ### Orçamentos e ordens de serviço
 
-<!-- Inserir aqui a captura real da tela de orçamentos e ordens de serviço -->
+<img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/31b9100d-57cd-48f4-8119-fd6a3a9b9043" />
+
 
 ### Agenda e status
 
-<!-- Inserir aqui a captura real da tela de agenda e status -->
+<img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/565b6295-c5ad-43b2-bc75-2255a11211ed" />
+
 
 ### Controle financeiro
 
-<!-- Inserir aqui a captura real da tela de controle financeiro -->
+<img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/1e90baab-840d-47d0-aefe-a0cc60a4012a" />
+
 
 ### Perfil e outras funcionalidades
 
-<!-- Inserir aqui capturas das telas de perfil, recuperação de senha e sobre -->
+<img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/246ae564-6b70-4ba8-b8a4-44b304145ecd" />  <img width="481" height="681" alt="image" src="https://github.com/user-attachments/assets/79ec51d4-635f-46cf-b2fe-e63715eec69e" />
+
+
+
 
 ---
 
