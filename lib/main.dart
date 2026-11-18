@@ -5,11 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'config/firebase_options.dart';
 import 'config/app_routes.dart';
 import 'config/service_locator.dart';
-import 'View/cadastrar_view.dart';
-import 'View/exibir_view.dart';
-import 'View/iniciar_view.dart';
-import 'View/sobre_view.dart';
-
+import 'views/cadastrar_view.dart';
+import 'views/exibir_view.dart';
+import 'views/iniciar_view.dart';
+import 'views/sobre_view.dart';
 
 
 Future<void> main() async {
