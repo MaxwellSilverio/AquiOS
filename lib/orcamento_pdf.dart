@@ -1,8 +1,9 @@
 
-import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';               //Formato A4
 import 'package:pdf/widgets.dart' as pw;     //permite montar o PDF
 import 'package:printing/printing.dart';     //permite compartilhar o PDF
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrcamentoPdf {
   static String moeda(double valor) {
@@ -15,6 +16,13 @@ class OrcamentoPdf {
     required String numero,
   }) async {
     final pdf = pw.Document();
+
+
+
+
+
+
+
 
     final itens = (orcamento['itens'] as List? ?? [])
         .map((item) => Map<String, dynamic>.from(item))
@@ -31,11 +39,18 @@ class OrcamentoPdf {
         item['tipo'].toString().toLowerCase() == 'servico')
         .toList();
 
-    // Inclui itens cujo tipo não corresponde aos nomes esperados.
+
+
+
+
+
+
     final outros = itens
         .where((item) =>
     !produtos.contains(item) && !servicos.contains(item))
         .toList();
+
+
 
     produtos.addAll(outros);
 
@@ -54,12 +69,13 @@ class OrcamentoPdf {
     final totalServicos = subtotal(servicos);
     final totalGeral = totalProdutos + totalServicos;
 
-    final dataOriginal = '${orcamento['data'] ?? ''}';
-    final data = dataOriginal.length >= 10
-        ? '${dataOriginal.substring(8, 10)}/'
-        '${dataOriginal.substring(5, 7)}/'
-        '${dataOriginal.substring(0, 4)}'
-        : dataOriginal;
+    final Timestamp dataTimestamp = orcamento['data'];
+    final DateTime dataConvertida = dataTimestamp.toDate();
+
+    final data =
+        '${dataConvertida.day.toString().padLeft(2, '0')}/'
+        '${dataConvertida.month.toString().padLeft(2, '0')}/'
+        '${dataConvertida.year}';
 
     pw.Widget texto(
         String valor, {

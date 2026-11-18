@@ -1,8 +1,9 @@
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+
 
 class ProdutosServicosView extends StatefulWidget {
   const ProdutosServicosView({super.key});
@@ -25,29 +26,54 @@ class _ProdutosServicosViewState extends State<ProdutosServicosView> {
     carregarItens();
   }
 
-  Future<void> carregarItens() async {
-    final preferencias = await SharedPreferences.getInstance();
-    final dados = preferencias.getString('listaProdutosServicos');
 
-    if (dados != null && mounted) {
-      final List lista = jsonDecode(dados);
+
+
+  Future<void> carregarItens() async {
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) return;
+
+    try {
+      final consulta = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('produtos_servicos')
+          .get();
+
+      if (!mounted) return;
 
       setState(() {
         _itens.clear();
-        for (final item in lista) {
-          _itens.add(Map<String, String>.from(item));
+
+        for (final documento in consulta.docs) {
+          final dados = documento.data();
+
+          _itens.add({
+            'id': documento.id,
+            'nome': dados['nome'].toString(),
+            'tipo': dados['tipo'].toString(),
+            'preco': dados['preco'].toString(),
+          });
         }
       });
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar itens: $erro'),
+        ),
+      );
     }
   }
 
-  Future<void> salvarItens() async {
-    final preferencias = await SharedPreferences.getInstance();
-    await preferencias.setString(
-      'listaProdutosServicos',
-      jsonEncode(_itens),
-    );
-  }
+
+
+
+
+
+
 
   Future<void> cadastrarItem() async {
     final nome = _nomeController.text.trim();
@@ -63,35 +89,91 @@ class _ProdutosServicosViewState extends State<ProdutosServicosView> {
       return;
     }
 
-    setState(() {
-      _itens.add({
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('produtos_servicos')
+          .add({
         'nome': nome,
         'tipo': _tipoSelecionado,
-        'preco': preco.toStringAsFixed(2),
+        'preco': preco,
+        'dataCadastro': Timestamp.now(),
+        'uid': usuario.uid,
+        'status': 'Ativo',
       });
-    });
 
-    await salvarItens();
+      _nomeController.clear();
+      _precoController.clear();
 
-    _nomeController.clear();
-    _precoController.clear();
+      await carregarItens();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Item cadastrado com sucesso!'),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Item cadastrado com sucesso!'),
+        ),
+      );
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao cadastrar item: $erro'),
+        ),
+      );
+    }
   }
+
+
+
+
+
 
   Future<void> excluirItem(int index) async {
-    setState(() {
-      _itens.removeAt(index);
-    });
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    await salvarItens();
+    if (usuario == null) return;
+
+    try {
+      final id = _itens[index]['id'];
+
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('produtos_servicos')
+          .doc(id)
+          .delete();
+
+      await carregarItens();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Item excluído com sucesso!'),
+        ),
+      );
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir item: $erro'),
+        ),
+      );
+    }
   }
+
+
+
+
+
 
   @override
   void dispose() {

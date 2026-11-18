@@ -5,12 +5,10 @@ class CadastrarController extends ChangeNotifier{
   String _nome = '';
   String _email = '';
   bool _receberNotificacoes = false;
-  String _senha = '';
   String _telefone = '';
 
   String get nome => _nome;
   String get email => _email;
-  String get senha => _senha;
   String get telefone => _telefone;
   bool get receberNotificacoes => _receberNotificacoes;
 
@@ -38,10 +36,6 @@ class CadastrarController extends ChangeNotifier{
     notifyListeners();
   }
 
-  void alterarSenha(String value) {
-    _senha = value;
-    notifyListeners();
-  }
 
   void alterarTelefone(String value) {
     _telefone = value;
@@ -60,7 +54,6 @@ class CadastrarController extends ChangeNotifier{
     _nome = '';
     _email = '';
     _receberNotificacoes = false;
-    _senha = '';
     _telefone = '';
 
     notifyListeners();

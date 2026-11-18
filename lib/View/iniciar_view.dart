@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'cadastrar_controller.dart';
-import 'app_routes.dart';
+import '../cadastrar_controller.dart';
+import '../app_routes.dart';
 
 import 'principal_view.dart';
 
@@ -24,6 +24,7 @@ class _InicioViewState extends State<InicioView> {
   final _senhaController = TextEditingController();
 
   bool _ocultarSenha = true;
+  bool _carregando = false;
 
   @override
   void dispose() {
@@ -146,16 +147,23 @@ class _InicioViewState extends State<InicioView> {
 
 
                     FilledButton(
-                      onPressed: () async {
+                      onPressed: _carregando ? null : () async {
                         if (!_formKey.currentState!.validate()) {
                           return;
                         }
 
+                        setState(() {
+                          _carregando = true;
+                        });
+
                         try {
+
                           await FirebaseAuth.instance.signInWithEmailAndPassword(
                             email: _emailController.text.trim(),
                             password: _senhaController.text,
                           );
+
+                          await Future.delayed(const Duration(seconds: 3));
 
                           if (!mounted) return;
 
@@ -178,8 +186,24 @@ class _InicioViewState extends State<InicioView> {
                             SnackBar(content: Text(mensagem)),
                           );
                         }
+                        finally {
+                          if (mounted) {
+                            setState(() {
+                              _carregando = false;
+                            });
+                          }
+                        }
                       },
-                      child: const Text('Entrar'),
+                      child: _carregando
+                          ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                          : const Text('Entrar'),
                     ),
 
 

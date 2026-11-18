@@ -1,8 +1,7 @@
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ControleFinanceiroView extends StatefulWidget {
   const ControleFinanceiroView({super.key});
@@ -22,22 +21,50 @@ class _ControleFinanceiroViewState
     carregarOrcamentos();
   }
 
+
+
+
+
   Future<void> carregarOrcamentos() async {
-    final preferencias = await SharedPreferences.getInstance();
-    final dados = preferencias.getString('listaOrcamentos');
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    if (!mounted) return;
+    if (usuario == null) return;
 
-    setState(() {
-      if (dados == null) {
-        _orcamentos = [];
-      } else {
-        _orcamentos = (jsonDecode(dados) as List)
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
-      }
-    });
+    try {
+      final consulta = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('orcamentos')
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        _orcamentos = consulta.docs.map((documento) {
+          final dados = documento.data();
+
+          return {
+            ...dados,
+            'id': documento.id,
+            'pagamento': dados['pagamento'] ?? 'Pendente',
+          };
+        }).toList();
+      });
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar orçamentos: $erro'),
+        ),
+      );
+    }
   }
+
+
+
+
+
 
   double converterTotal(dynamic valor) {
     if (valor is num) {
@@ -75,6 +102,11 @@ class _ControleFinanceiroViewState
 
 
 
+
+
+
+
+
   Future<void> excluirOrcamento(int index) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -100,27 +132,44 @@ class _ControleFinanceiroViewState
       ),
     );
 
-    if (confirmar != true) return;
+    if (confirmar != true || !mounted) return;
 
-    final preferencias = await SharedPreferences.getInstance();
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    setState(() {
-      _orcamentos.removeAt(index);
-    });
+    if (usuario == null) return;
 
-    await preferencias.setString(
-      'listaOrcamentos',
-      jsonEncode(_orcamentos),
-    );
+    try {
+      final id = _orcamentos[index]['id'];
 
-    if (!mounted) return;
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('orcamentos')
+          .doc(id)
+          .delete();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Orçamento excluído com sucesso!'),
-      ),
-    );
+      await carregarOrcamentos();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Orçamento excluído com sucesso!'),
+        ),
+      );
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir orçamento: $erro'),
+        ),
+      );
+    }
   }
+
+
+
 
 
 
@@ -128,18 +177,33 @@ class _ControleFinanceiroViewState
       int index,
       String pagamento,
       ) async {
-    final preferencias = await SharedPreferences.getInstance();
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    setState(() {
-      _orcamentos[index]['pagamento'] = pagamento;
-    });
+    if (usuario == null) return;
 
-    await preferencias.setString(
-      'listaOrcamentos',
-      jsonEncode(_orcamentos),
-    );
+    try {
+      final id = _orcamentos[index]['id'];
+
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('orcamentos')
+          .doc(id)
+          .update({
+        'pagamento': pagamento,
+      });
+
+      await carregarOrcamentos();
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao atualizar pagamento: $erro'),
+        ),
+      );
+    }
   }
-
 
 
 

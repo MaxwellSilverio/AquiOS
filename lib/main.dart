@@ -5,10 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'app_routes.dart';
 import 'service_locator.dart';
-import 'cadastrar_view.dart';
-import 'exibir_view.dart';
-import 'iniciar_view.dart';
-import 'sobre_view.dart';
+import 'View/cadastrar_view.dart';
+import 'View/exibir_view.dart';
+import 'View/iniciar_view.dart';
+import 'View/sobre_view.dart';
 
 
 
@@ -24,9 +24,12 @@ Future<void> main() async {
   runApp(const MeuApp());
 }
 
+
+
+
+
 class MeuApp extends StatelessWidget {
   const MeuApp({super.key});
-
 
   @override
   Widget build(BuildContext context) {

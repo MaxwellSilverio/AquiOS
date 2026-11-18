@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 class DadosProfissionaisView extends StatefulWidget {
   const DadosProfissionaisView({super.key});
@@ -39,23 +41,57 @@ class _DadosProfissionaisViewState
     carregarDados();
   }
 
+
+
+
   Future<void> carregarDados() async {
-    final preferencias = await SharedPreferences.getInstance();           // Aqui faz carregar os dados
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    _nomeController.text =
-        preferencias.getString('nomeProfissional') ?? '';
+    if (usuario == null) return;
 
-    _documentoController.text =
-        preferencias.getString('documentoProfissional') ?? '';
+    try {
+      final documento = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .get();
 
-    _emailController.text =
-        preferencias.getString('emailProfissional') ?? '';
+      if (!mounted) return;
 
-    _telefoneController.text =
-        preferencias.getString('telefoneProfissional') ?? '';
+      final dados = documento.data() ?? {};
 
-    _enderecoController.text =
-        preferencias.getString('enderecoProfissional') ?? '';
+      setState(() {
+        _nomeController.text =
+            dados['nomeProfissional'] ??
+                dados['nome'] ??
+                usuario.displayName ??
+                '';
+
+        _documentoController.text =
+            dados['documentoProfissional'] ?? '';
+
+        _emailController.text =
+            dados['emailProfissional'] ??
+                dados['email'] ??
+                usuario.email ??
+                '';
+
+        _telefoneController.text =
+            dados['telefoneProfissional'] ??
+                dados['telefone'] ??
+                '';
+
+        _enderecoController.text =
+            dados['enderecoProfissional'] ?? '';
+      });
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar dados: $erro'),
+        ),
+      );
+    }
   }
 
 
@@ -64,7 +100,9 @@ class _DadosProfissionaisViewState
 
 
 
-  Future<void> salvar() async {                                         // aqui que salva os dados
+
+
+  Future<void> salvar() async {
     if (_nomeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -74,40 +112,38 @@ class _DadosProfissionaisViewState
       return;
     }
 
-    final preferencias = await SharedPreferences.getInstance();
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    await preferencias.setString(
-      'nomeProfissional',
-      _nomeController.text.trim(),
-    );
+    if (usuario == null) return;
 
-    await preferencias.setString(
-      'documentoProfissional',
-      _documentoController.text.trim(),
-    );
+    try {
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .set({
+        'nomeProfissional': _nomeController.text.trim(),
+        'documentoProfissional': _documentoController.text.trim(),
+        'emailProfissional': _emailController.text.trim(),
+        'telefoneProfissional': _telefoneController.text.trim(),
+        'enderecoProfissional': _enderecoController.text.trim(),
+      }, SetOptions(merge: true));
 
-    await preferencias.setString(
-      'emailProfissional',
-      _emailController.text.trim(),
-    );
+      if (!mounted) return;
 
-    await preferencias.setString(
-      'telefoneProfissional',
-      _telefoneController.text.trim(),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dados profissionais salvos com sucesso!'),
+        ),
+      );
+    } catch (erro) {
+      if (!mounted) return;
 
-    await preferencias.setString(
-      'enderecoProfissional',
-      _enderecoController.text.trim(),
-    );
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Dados profissionais salvos com sucesso!'),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao salvar dados: $erro'),
+        ),
+      );
+    }
   }
 
 

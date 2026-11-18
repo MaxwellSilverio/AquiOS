@@ -1,15 +1,17 @@
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'orcamento_pdf.dart';
+import '../orcamento_pdf.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OrcamentosView extends StatefulWidget {
   const OrcamentosView({super.key});
 
   @override
   State<OrcamentosView> createState() => _OrcamentosViewState();
+
+
 }
 
 class _OrcamentosViewState extends State<OrcamentosView> {
@@ -29,31 +31,67 @@ class _OrcamentosViewState extends State<OrcamentosView> {
     carregarDados();
   }
 
+
+
+
   Future<void> carregarDados() async {
-    final preferencias = await SharedPreferences.getInstance();
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    final dadosClientes =
-    preferencias.getString('listaClientes');
+    if (usuario == null) return;
 
-    final dadosItens =
-    preferencias.getString('listaProdutosServicos');
+    try {
+      final consultaClientes = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('clientes')
+          .get();
 
-    if (!mounted) return;
+      final consultaItens = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('produtos_servicos')
+          .get();
 
-    setState(() {
-      if (dadosClientes != null) {
-        _clientes = (jsonDecode(dadosClientes) as List)
-            .map((item) => Map<String, String>.from(item))
-            .toList();
-      }
+      if (!mounted) return;
 
-      if (dadosItens != null) {
-        _itensDisponiveis = (jsonDecode(dadosItens) as List)
-            .map((item) => Map<String, String>.from(item))
-            .toList();
-      }
-    });
+      setState(() {
+        _clientes = consultaClientes.docs.map((documento) {
+          final dados = documento.data();
+
+          return {
+            'id': documento.id,
+            'nome': dados['nome']?.toString() ?? '',
+            'telefone': dados['telefone']?.toString() ?? '',
+          };
+        }).toList();
+
+        _itensDisponiveis = consultaItens.docs.map((documento) {
+          final dados = documento.data();
+
+          return {
+            'id': documento.id,
+            'nome': dados['nome']?.toString() ?? '',
+            'tipo': dados['tipo']?.toString() ?? '',
+            'preco': (dados['preco'] ?? 0).toString(),
+          };
+        }).toList();
+      });
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar dados: $erro'),
+        ),
+      );
+    }
   }
+
+
+
+
+
+
 
   double get total {
     double soma = 0;
@@ -113,7 +151,20 @@ class _OrcamentosViewState extends State<OrcamentosView> {
 
 
 
+
   Future<void> salvarOrcamento() async {
+
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado para salvar um orçamento.'),
+        ),
+      );
+      return;
+    }
+
     if (_clienteSelecionado == null ||
         _itensOrcamento.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,69 +177,65 @@ class _OrcamentosViewState extends State<OrcamentosView> {
       return;
     }
 
-    final preferencias = await SharedPreferences.getInstance();
+    try {
+      final colecao = FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('orcamentos');
 
-    final dadosAtuais =
-    preferencias.getString('listaOrcamentos');
+      // Busca os orçamentos existentes do usuário.
+      final consulta = await colecao.get();
 
-    final List<Map<String, dynamic>> orcamentos =
-    dadosAtuais == null
-        ? []
-        : (jsonDecode(dadosAtuais) as List)
-        .map(
-          (item) => Map<String, dynamic>.from(item),
-    )
-        .toList();
+      final numerosExistentes = consulta.docs
+          .map((documento) =>
+      int.tryParse('${documento.data()['numero']}') ?? 0)
+          .toList();
 
+      // Calcula o próximo número.
+      final proximoNumero = numerosExistentes.isEmpty
+          ? 1
+          : numerosExistentes.reduce(
+            (maior, numero) => numero > maior ? numero : maior,
+      ) + 1;
 
+      // Grava o orçamento no Firestore.
+      await colecao.add({
+        'numero': proximoNumero.toString().padLeft(4, '0'),
+        'cliente': _clienteSelecionado!,
+        'itens': List<Map<String, String>>.from(
+          _itensOrcamento,
+        ),
+        'total': total,
+        'data': Timestamp.now(),
+        'status': 'Pendente',
+        'pagamento': 'Pendente',
+      });
 
-    final numerosExistentes = orcamentos
-        .map((orcamento) =>
-    int.tryParse('${orcamento['numero']}') ?? 0)
-        .toList();                                              //O primeiro orçamento novo recebe 0001 e o segundo 0002
+      if (!mounted) return;
 
-    final proximoNumero = numerosExistentes.isEmpty
-        ? 1
-        : numerosExistentes.reduce(
-          (maior, numero) => numero > maior ? numero : maior,
-    ) + 1;
+      setState(() {
+        _clienteSelecionado = null;
+        _itemSelecionado = null;
+        _itensOrcamento.clear();
+        _quantidadeController.text = '1';
+      });
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Orçamento salvo com sucesso!'),
+        ),
+      );
 
+    } catch (erro) {
+      if (!mounted) return;
 
-
-    orcamentos.add({
-      'numero': proximoNumero.toString().padLeft(4, '0'),
-      'cliente': _clienteSelecionado!,
-      'itens': List<Map<String, String>>.from(
-        _itensOrcamento,
-      ),
-      'total': total.toStringAsFixed(2),
-      'data': DateTime.now().toIso8601String(),
-      'status': 'Pendente',
-    });
-
-    await preferencias.setString(
-      'listaOrcamentos',
-      jsonEncode(orcamentos),
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _clienteSelecionado = null;
-      _itemSelecionado = null;
-      _itensOrcamento.clear();
-      _quantidadeController.text = '1';
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Orçamento salvo com sucesso!'),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao salvar orçamento: $erro'),
+        ),
+      );
+    }
   }
-
-
 
 
 
@@ -204,99 +251,195 @@ class _OrcamentosViewState extends State<OrcamentosView> {
 
 
   Future<void> verOrcamentosSalvos() async {
-    final preferencias = await SharedPreferences.getInstance();
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    final dados =
-    preferencias.getString('listaOrcamentos');
+    if (usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado.'),
+        ),
+      );
+      return;
+    }
 
-    final List<Map<String, dynamic>> orcamentos =
-    dados == null
-        ? []
-        : (jsonDecode(dados) as List)
-        .map(
-          (item) => Map<String, dynamic>.from(item),
-    )
-        .toList();
+    try {
+      final consulta = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('orcamentos')
+          .orderBy('data', descending: true)
+          .get();
 
-    if (!mounted) return;
+      final orcamentos = consulta.docs.map((documento) {
+        final dados = documento.data();
 
-    showDialog(
+        return {
+          ...dados,
+          'id': documento.id,
+        };
+      }).toList();
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Orçamentos salvos'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 350,
+              child: orcamentos.isEmpty
+                  ? const Center(
+                child: Text('Nenhum orçamento salvo.'),
+              )
+                  : ListView.builder(
+                itemCount: orcamentos.length,
+                itemBuilder: (context, index) {
+                  final orcamento = orcamentos[index];
+
+                  final data = orcamento['data'] as Timestamp;
+                  final dataFormatada =
+                      '${data.toDate().day.toString().padLeft(2, '0')}/'
+                      '${data.toDate().month.toString().padLeft(2, '0')}/'
+                      '${data.toDate().year}';
+
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.receipt_long,
+                        color: Colors.lightBlue,
+                      ),
+                      title: Text(
+                        orcamento['cliente']?.toString() ?? 'Cliente',
+                      ),
+                      subtitle: Text(
+                        'Data: $dataFormatada\n'
+                            'Status: ${orcamento['status'] ?? 'Pendente'}',
+                      ),
+                      isThreeLine: true,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                            ),
+                            tooltip: 'Excluir orçamento',
+                            onPressed: () {
+                              excluirOrcamento(orcamento['id']);
+                            },
+                          ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      ),
+                      onTap: () {
+                        verDetalhesOrcamento(orcamento);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao consultar orçamentos: $erro'),
+        ),
+      );
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+  Future<void> excluirOrcamento(String id) async {
+    final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Orçamentos salvos'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 350,
-            child: orcamentos.isEmpty
-                ? const Center(
-              child: Text('Nenhum orçamento salvo.'),
-            )
-                : ListView.builder(
-              itemCount: orcamentos.length,
-              itemBuilder: (context, index) {
-                final orcamento = orcamentos[index];
-
-                final data =
-                (orcamento['data'] ?? '').toString();
-
-                final dataFormatada =
-                data.length >= 10
-                    ? '${data.substring(8, 10)}/'
-                    '${data.substring(5, 7)}/'
-                    '${data.substring(0, 4)}'
-                    : data;
-
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(
-                      Icons.receipt_long,
-                      color: Colors.lightBlue,
-                    ),
-                    title: Text(
-                      orcamento['cliente']
-                          ?.toString() ??
-                          'Cliente',
-                    ),
-                    subtitle: Text(
-                      'Data: $dataFormatada\n'
-                          'Status: ${orcamento['status'] ?? 'Pendente'}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                          ),
-                          tooltip: 'Excluir orçamento',
-                          onPressed: () {
-                            excluirOrcamento(index);
-                          },
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    onTap: () {
-                      verDetalhesOrcamento(orcamento);
-                    },
-                  ),
-                );
-              },
-            ),
+          title: const Text('Excluir orçamento'),
+          content: const Text(
+            'Tem certeza de que deseja excluir este orçamento?',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Fechar'),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Excluir',
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
       },
     );
+
+    if (confirmar != true) return;
+
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario.uid)
+          .collection('orcamentos')
+          .doc(id)
+          .delete();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Orçamento excluído com sucesso!'),
+        ),
+      );
+
+      verOrcamentosSalvos();
+    } catch (erro) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir orçamento: $erro'),
+        ),
+      );
+    }
   }
+
 
 
 
@@ -420,71 +563,6 @@ class _OrcamentosViewState extends State<OrcamentosView> {
 
 
 
-
-
-  Future<void> excluirOrcamento(int index) async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Excluir orçamento'),
-          content: const Text(
-            'Tem certeza de que deseja excluir este orçamento?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text(
-                'Excluir',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmar != true) return;
-
-    final preferencias = await SharedPreferences.getInstance();
-
-    final dados =
-    preferencias.getString('listaOrcamentos');
-
-    if (dados == null) return;
-
-    final List<Map<String, dynamic>> orcamentos =
-    (jsonDecode(dados) as List)
-        .map(
-          (item) => Map<String, dynamic>.from(item),
-    )
-        .toList();
-
-    if (index < 0 || index >= orcamentos.length) return;
-
-    orcamentos.removeAt(index);
-
-    await preferencias.setString(
-      'listaOrcamentos',
-      jsonEncode(orcamentos),
-    );
-
-    if (!mounted) return;
-
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Orçamento excluído com sucesso!'),
-      ),
-    );
-
-    verOrcamentosSalvos();
-  }
 
 
 

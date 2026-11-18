@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'cadastrar_controller.dart';
-import 'app_routes.dart';
+import '../cadastrar_controller.dart';
+import '../app_routes.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CadastrarView extends StatefulWidget {
   const CadastrarView({super.key});
@@ -15,6 +16,7 @@ class CadastrarView extends StatefulWidget {
 
 class _CadastrarViewState extends State<CadastrarView> {
   final ctrl = GetIt.I.get<CadastrarController>();
+  bool _carregando = false;
 
   final GlobalKey<FormState> _formKey =
   GlobalKey<FormState>();
@@ -71,6 +73,10 @@ class _CadastrarViewState extends State<CadastrarView> {
       return;
     }
 
+    setState(() {
+      _carregando = true;
+    });
+
     try {
       final credencial =
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -82,9 +88,19 @@ class _CadastrarViewState extends State<CadastrarView> {
         _nomeController.text.trim(),
       );
 
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(credencial.user!.uid)
+          .set({
+        'nome': _nomeController.text.trim(),
+        'email': _emailController.text.trim(),
+        'telefone': _telefoneController.text.trim(),
+        'receberNotificacoes': ctrl.receberNotificacoes,
+        'dataCadastro': FieldValue.serverTimestamp(),
+      });
+
       ctrl.alterarNome(_nomeController.text.trim());
       ctrl.alterarEmail(_emailController.text.trim());
-      ctrl.alterarSenha(_senhaController.text);
       ctrl.alterarTelefone(_telefoneController.text.trim());
 
       if (!mounted) return;
@@ -126,6 +142,12 @@ class _CadastrarViewState extends State<CadastrarView> {
           content: Text('Ocorreu um erro ao realizar o cadastro.'),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+        });
+      }
     }
   }
 
@@ -309,20 +331,32 @@ class _CadastrarViewState extends State<CadastrarView> {
 
                             TextFormField(
                               controller: _senhaController,
-                              onChanged: ctrl.alterarSenha,
                               textInputAction: TextInputAction.next,
                               decoration: const InputDecoration(
                                 labelText: 'Senha',
                                 hintText: 'Crie uma senha',
                                 prefixIcon: Icon(Icons.lock_outline),
                               ),
+
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Informe a senha.';
                                 }
 
-                                if (value.length < 6) {
-                                  return 'A senha deve ter pelo menos 6 caracteres.';
+                                if (value.length < 8) {
+                                  return 'A senha deve ter pelo menos 8 caracteres.';
+                                }
+
+                                if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                                  return 'Inclua pelo menos uma letra maiúscula.';
+                                }
+
+                                if (!RegExp(r'[a-z]').hasMatch(value)) {
+                                  return 'Inclua pelo menos uma letra minúscula.';
+                                }
+
+                                if (!RegExp(r'[0-9]').hasMatch(value)) {
+                                  return 'Inclua pelo menos um número.';
                                 }
 
                                 return null;
@@ -403,10 +437,19 @@ class _CadastrarViewState extends State<CadastrarView> {
 
 
                             FilledButton.icon(
-                              onPressed: _salvar,
-                              icon: const Icon(Icons.save_outlined),
-                              label: const Text(
-                                'Salvar e exibir',
+                              onPressed: _carregando ? null : _salvar,
+                              icon: _carregando
+                                  ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                                  : const Icon(Icons.save_outlined),
+                              label: Text(
+                                _carregando ? 'Cadastrando...' : 'Salvar e exibir',
                               ),
                             ),
 
