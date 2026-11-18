@@ -53,3 +53,6 @@ app.*.map.json
 *.key
 *service-account*.json
 
+
+# Configurações locais do Firebase CLI
+.firebase/

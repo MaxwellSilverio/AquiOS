@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-import 'firebase_options.dart';
-import 'app_routes.dart';
-import 'service_locator.dart';
+import 'config/firebase_options.dart';
+import 'config/app_routes.dart';
+import 'config/service_locator.dart';
 import 'View/cadastrar_view.dart';
 import 'View/exibir_view.dart';
 import 'View/iniciar_view.dart';

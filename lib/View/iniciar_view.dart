@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../cadastrar_controller.dart';
-import '../app_routes.dart';
+import '../controllers/cadastrar_controller.dart';
+import '../config/app_routes.dart';
 
 import 'principal_view.dart';
 
